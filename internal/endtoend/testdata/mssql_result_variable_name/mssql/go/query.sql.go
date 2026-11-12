@@ -10,6 +10,60 @@ import (
 	"database/sql"
 )
 
+const leadingUnicodeDigit = `-- name: LeadingUnicodeDigit :many
+SELECT amount AS [١total] FROM sales;
+`
+
+func (q *Queries) LeadingUnicodeDigit(ctx context.Context) ([]int32, error) {
+	rows, err := q.db.QueryContext(ctx, leadingUnicodeDigit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var _١total int32
+		if err := rows.Scan(&_١total); err != nil {
+			return nil, err
+		}
+		items = append(items, _١total)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const noIdentifierCharacters = `-- name: NoIdentifierCharacters :many
+SELECT amount AS [!] FROM sales;
+`
+
+func (q *Queries) NoIdentifierCharacters(ctx context.Context) ([]int32, error) {
+	rows, err := q.db.QueryContext(ctx, noIdentifierCharacters)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var column_1 int32
+		if err := rows.Scan(&column_1); err != nil {
+			return nil, err
+		}
+		items = append(items, column_1)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const sales2023 = `-- name: Sales2023 :many
 SELECT SUM(amount) AS [2023] FROM sales;
 `
