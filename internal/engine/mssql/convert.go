@@ -1257,6 +1257,53 @@ func (c *cc) convertAlterTableAddTableElementStatement(n *tsql.AlterTableAddTabl
 	return stmt
 }
 
+// blockSchemaStatements are the schema changes an IF or BEGIN ... END block
+// makes, as a migration script guards CREATE TABLE with IF OBJECT_ID(...)
+// IS NULL. The THEN branch is taken, and since a guard is what decides
+// whether a change applies, each change tolerates the object being there
+// or not: a create of one that exists and a drop or alter of one that does
+// not are skipped. Anything that is not a schema change is left out, as it
+// is outside a block.
+func (c *cc) blockSchemaStatements(n tsql.Statement) []ast.Node {
+	var out []ast.Node
+	switch s := n.(type) {
+	case *tsql.IfStatement:
+		out = c.blockSchemaStatements(s.ThenStatement)
+	case *tsql.BeginEndBlockStatement:
+		if s.StatementList != nil {
+			for _, inner := range s.StatementList.Statements {
+				out = append(out, c.blockSchemaStatements(inner)...)
+			}
+		}
+	case nil:
+	default:
+		switch stmt := c.convert(s).(type) {
+		case *ast.TODO, *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt:
+		case *ast.CreateTableStmt:
+			stmt.IfNotExists = true
+			out = append(out, stmt)
+		case *ast.DropTableStmt:
+			stmt.IfExists = true
+			out = append(out, stmt)
+		case *ast.AlterTableStmt:
+			stmt.MissingOk = true
+			out = append(out, stmt)
+		case *ast.RenameColumnStmt:
+			stmt.MissingOk = true
+			out = append(out, stmt)
+		case *ast.RenameTableStmt:
+			stmt.MissingOk = true
+			out = append(out, stmt)
+		case *ast.ViewStmt:
+			stmt.Replace = true
+			out = append(out, stmt)
+		default:
+			out = append(out, stmt)
+		}
+	}
+	return out
+}
+
 // convertExecuteStatement converts the one procedure call a schema changes
 // the catalog with: sp_rename, of a table, or of a column when its object
 // type is COLUMN. Any other call is no statement sqlc has a use for.

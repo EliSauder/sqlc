@@ -47,6 +47,11 @@ func (p *Parser) Parse(r io.Reader) ([]ast.Statement, error) {
 			converter := &cc{toByte: toByte}
 			out := converter.convert(stmt)
 			if _, ok := out.(*ast.TODO); ok {
+				for _, ddl := range converter.blockSchemaStatements(stmt) {
+					stmts = append(stmts, ast.Statement{
+						Raw: &ast.RawStmt{Stmt: ddl, StmtLocation: loc, StmtLen: end - loc},
+					})
+				}
 				loc = end
 				continue
 			}
