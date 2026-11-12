@@ -224,8 +224,9 @@ func applyGenerated(cat *core.Catalog, classOID int64, table *ast.TableName, col
 	if r, err := analyzer.Prepare(cat, sel); err == nil && len(r.Columns) == 1 {
 		res, typeOID = r.Columns[0], r.Columns[0].TypeOID
 		// An expression's type may carry arguments, as decimal(10,2) does,
-		// that no column has interned yet.
-		if typeOID == 0 && res.Type != nil {
+		// that no column has interned yet, and for which the analysis
+		// reports the family's row.
+		if res.Type != nil && (typeOID == 0 || len(res.Type.Args) > 0) {
 			t := *res.Type
 			t.Nullable = false
 			typeOID, _ = cat.ResolveTypeExpr(&t)

@@ -10,7 +10,9 @@ CREATE TABLE authors (
   full_label AS (CONCAT(name, bio)),
   bio_label AS (bio + N'?'),
   cost AS (CAST(price AS decimal(10,2))),
-  c_isnull AS (ISNULL(bio, N'none'))
+  c_isnull AS (ISNULL(bio, N'none')),
+  precise AS (CAST(price AS decimal(17,9))),
+  price_text AS (CAST(price AS nvarchar(37)))
 );
 
 ALTER TABLE authors ADD extra AS (price + 1);

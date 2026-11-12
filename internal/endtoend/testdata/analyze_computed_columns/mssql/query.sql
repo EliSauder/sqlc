@@ -1,5 +1,5 @@
 -- name: GetComputed :one
-SELECT total, doubled, doubled_nn, label, full_label, bio_label, cost, c_isnull, extra
+SELECT total, doubled, doubled_nn, label, full_label, bio_label, cost, c_isnull, precise, price_text, extra
 FROM authors
 WHERE id = @id;
 

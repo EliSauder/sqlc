@@ -78,6 +78,35 @@
         "table": "authors"
       },
       {
+        "name": "precise",
+        "type": {
+          "name": "decimal",
+          "nullable": true,
+          "args": [
+            {
+              "int": 17
+            },
+            {
+              "int": 9
+            }
+          ]
+        },
+        "table": "authors"
+      },
+      {
+        "name": "price_text",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true,
+          "args": [
+            {
+              "int": 37
+            }
+          ]
+        },
+        "table": "authors"
+      },
+      {
         "name": "extra",
         "type": {
           "name": "int",
@@ -211,6 +240,35 @@
           "args": [
             {
               "int": 200
+            }
+          ]
+        },
+        "table": "authors"
+      },
+      {
+        "name": "precise",
+        "type": {
+          "name": "decimal",
+          "nullable": true,
+          "args": [
+            {
+              "int": 17
+            },
+            {
+              "int": 9
+            }
+          ]
+        },
+        "table": "authors"
+      },
+      {
+        "name": "price_text",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true,
+          "args": [
+            {
+              "int": 37
             }
           ]
         },
