@@ -1007,6 +1007,10 @@ func (c *cc) convertScalarExpression(expr tsql.ScalarExpression) ast.Node {
 			},
 			Location: c.loc(e),
 		}
+	case *tsql.LeftFunctionCall:
+		return c.namedCall("left", e.Parameters, e)
+	case *tsql.RightFunctionCall:
+		return c.namedCall("right", e.Parameters, e)
 	case *tsql.NextValueForExpression:
 		if e.SequenceName == nil {
 			return todo(e)
@@ -1884,6 +1888,20 @@ func (c *cc) convertAlterSchemaStatement(n *tsql.AlterSchemaStatement) ast.Node 
 		Table:     parseTableName(n.ObjectName),
 		NewSchema: &schema,
 	}
+}
+
+// namedCall is a call of name with args, for a function the parser gives a
+// node of its own, as LEFT and RIGHT, which are keywords too.
+func (c *cc) namedCall(name string, args []tsql.ScalarExpression, n tsql.Node) *ast.FuncCall {
+	call := &ast.FuncCall{
+		Funcname: &ast.List{Items: []ast.Node{&ast.String{Str: name}}},
+		Args:     &ast.List{},
+		Location: c.loc(n),
+	}
+	for _, arg := range args {
+		call.Args.Items = append(call.Args.Items, c.convertScalarExpression(arg))
+	}
+	return call
 }
 
 // typeSpelling spells a type so that it parses back as the same type, which
