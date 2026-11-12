@@ -1,0 +1,2 @@
+# package querytest
+error generating code: query "CreateBook": :execlastid is not supported for SQL Server, whose driver reports no last insert ID; use OUTPUT INSERTED.<column> with :one
