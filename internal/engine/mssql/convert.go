@@ -1193,7 +1193,7 @@ type namedParam struct {
 // call to one is seeded as ".name" taking the value first, which tells it
 // from a function in a schema, as dbo.f(), the parser sees alike.
 var typeMethods = map[string]bool{
-	"exist": true,
+	"exist":    true,
 	"getlevel": true, "tostring": true, "getancestor": true, "getdescendant": true,
 	"isdescendantof": true, "getreparentedvalue": true,
 	"stastext": true, "stasbinary": true, "starea": true, "stlength": true,
