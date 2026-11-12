@@ -27,7 +27,7 @@ func validateCopyfrom(n ast.Node) error {
 	if !ok {
 		return nil
 	}
-	if len(sel.FromClause.Items) > 0 {
+	if sel.FromClause != nil && len(sel.FromClause.Items) > 0 {
 		return errors.New(":copyfrom is not compatible with INSERT INTO ... SELECT")
 	}
 	if sel.ValuesLists == nil || len(sel.ValuesLists.Items) != 1 {
