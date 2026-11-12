@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/sqlc-dev/sqlc/internal/codegen/golang/opts"
 	"github.com/sqlc-dev/sqlc/internal/codegen/sdk"
@@ -176,7 +177,10 @@ func goIdent(name string) string {
 		}
 		return '_'
 	}, name)
-	if name != "" && unicode.IsDigit(rune(name[0])) {
+	if strings.Trim(name, "_") == "" {
+		return "column_1"
+	}
+	if r, _ := utf8.DecodeRuneInString(name); unicode.IsDigit(r) {
 		name = "_" + name
 	}
 	return name
