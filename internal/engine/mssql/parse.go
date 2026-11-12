@@ -3,13 +3,17 @@ package mssql
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
+	"regexp"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/sqlc-dev/teesql/parser"
 
 	"github.com/sqlc-dev/sqlc/internal/source"
 	"github.com/sqlc-dev/sqlc/internal/sql/ast"
+	"github.com/sqlc-dev/sqlc/internal/sql/sqlerr"
 )
 
 func NewParser() *Parser {
@@ -47,6 +51,16 @@ func (p *Parser) Parse(r io.Reader) ([]ast.Statement, error) {
 			converter := &cc{toByte: toByte}
 			out := converter.convert(stmt)
 			if _, ok := out.(*ast.TODO); ok {
+				// A schema holds statements sqlc has no use for, which are
+				// skipped. A named query sqlc cannot analyze is an error,
+				// rather than a query missing from the generated code.
+				if namedQuery.Match(blob[loc:end]) {
+					kind := strings.TrimSuffix(strings.TrimPrefix(fmt.Sprintf("%T", stmt), "*ast."), "Statement")
+					return nil, &sqlerr.Error{
+						Message:  fmt.Sprintf("%s statements are not supported", kind),
+						Location: start,
+					}
+				}
 				loc = end
 				continue
 			}
@@ -64,6 +78,9 @@ func (p *Parser) Parse(r io.Reader) ([]ast.Statement, error) {
 
 	return stmts, nil
 }
+
+// namedQuery matches the comment that names a query.
+var namedQuery = regexp.MustCompile(`(?m)^\s*--\s*name:\s*\S+`)
 
 // byteOffsets returns a function mapping a UTF-16 code-unit offset — how
 // teesql records source spans, mirroring ScriptDom — to a byte offset in
