@@ -212,6 +212,16 @@ func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, 
 		tctx.SQLDriver = opts.SQLDriverGoSQLDriverMySQL
 	}
 
+	// go-mssqldb never reports a last insert ID; SQL Server returns one with
+	// OUTPUT INSERTED.
+	if req.Settings.Engine == engineMSSQL {
+		for _, q := range queries {
+			if q.Cmd == metadata.CmdExecLastId {
+				return nil, fmt.Errorf("query %q: :execlastid is not supported for SQL Server, whose driver reports no last insert ID; use OUTPUT INSERTED.<column> with :one", q.MethodName)
+			}
+		}
+	}
+
 	if tctx.UsesBatch && !tctx.SQLDriver.IsPGX() {
 		return nil, errors.New(":batch* commands are only supported by pgx")
 	}

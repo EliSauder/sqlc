@@ -77,6 +77,9 @@ func (q *Queries) InsertAuthor(ctx context.Context, name string) (int64, error) 
 }
 ```
 
+SQL Server's driver reports no last insert ID, so `:execlastid` is not
+supported there. Return the ID with `OUTPUT INSERTED.id` and `:one` instead.
+
 ## `:many`
 
 The generated method will return a slice of records via
