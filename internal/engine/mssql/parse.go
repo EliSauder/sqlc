@@ -61,6 +61,11 @@ func (p *Parser) Parse(r io.Reader) ([]ast.Statement, error) {
 						Location: start,
 					}
 				}
+				for _, ddl := range converter.blockSchemaStatements(stmt) {
+					stmts = append(stmts, ast.Statement{
+						Raw: &ast.RawStmt{Stmt: ddl, StmtLocation: loc, StmtLen: end - loc},
+					})
+				}
 				loc = end
 				continue
 			}

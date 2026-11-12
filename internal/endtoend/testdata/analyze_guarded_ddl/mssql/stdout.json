@@ -1,0 +1,61 @@
+[
+  {
+    "name": "AuthorBooks",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "name",
+        "type": {
+          "name": "nvarchar",
+          "args": [
+            {
+              "int": 100
+            }
+          ]
+        },
+        "table": "authors"
+      },
+      {
+        "name": "title",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true,
+          "args": [
+            {
+              "int": 200
+            }
+          ]
+        },
+        "table": "books"
+      }
+    ],
+    "params": []
+  },
+  {
+    "name": "BookTitles",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "id",
+        "type": {
+          "name": "int"
+        },
+        "table": "book_titles"
+      },
+      {
+        "name": "title",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true,
+          "args": [
+            {
+              "int": 200
+            }
+          ]
+        },
+        "table": "book_titles"
+      }
+    ],
+    "params": []
+  }
+]
