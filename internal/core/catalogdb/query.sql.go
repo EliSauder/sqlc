@@ -1143,6 +1143,20 @@ func (q *Queries) SetAttributeUnique(ctx context.Context, arg SetAttributeUnique
 	return err
 }
 
+const setClassNamespace = `-- name: SetClassNamespace :exec
+UPDATE sql_class SET namespace_oid = ?1 WHERE oid = ?2
+`
+
+type SetClassNamespaceParams struct {
+	NamespaceOid int64
+	Oid          int64
+}
+
+func (q *Queries) SetClassNamespace(ctx context.Context, arg SetClassNamespaceParams) error {
+	_, err := q.db.ExecContext(ctx, setClassNamespace, arg.NamespaceOid, arg.Oid)
+	return err
+}
+
 const setDialectFlag = `-- name: SetDialectFlag :exec
 INSERT INTO sql_dialect_flag (dialect_oid, key, value)
 VALUES (?, ?, ?)

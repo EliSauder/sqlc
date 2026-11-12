@@ -60,6 +60,18 @@ func (c *Catalog) RenameClass(classOID int64, name string) error {
 	return nil
 }
 
+// SetClassNamespace moves a relation to another namespace.
+func (c *Catalog) SetClassNamespace(classOID, namespaceOID int64) error {
+	err := c.q.SetClassNamespace(context.Background(), catalogdb.SetClassNamespaceParams{
+		Oid:          classOID,
+		NamespaceOid: namespaceOID,
+	})
+	if err != nil {
+		return fmt.Errorf("set namespace of class %d: %w", classOID, err)
+	}
+	return nil
+}
+
 type ClassInfo struct {
 	OID  int64
 	Name string

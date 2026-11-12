@@ -71,6 +71,8 @@ func (c *cc) convert(node tsql.Node) ast.Node {
 		return c.convertCreateSequenceStatement(n)
 	case *tsql.CreateSynonymStatement:
 		return c.convertCreateSynonymStatement(n)
+	case *tsql.AlterSchemaStatement:
+		return c.convertAlterSchemaStatement(n)
 	case *tsql.CreateTypeUddtStatement:
 		return c.convertCreateTypeUddtStatement(n)
 	case *tsql.CreateViewStatement:
@@ -1303,6 +1305,27 @@ func (c *cc) convertCreateSynonymStatement(n *tsql.CreateSynonymStatement) ast.N
 			FromClause: &ast.List{Items: []ast.Node{c.parseRangeVar(n.ForName)}},
 		},
 		Options: &ast.List{Items: []ast.Node{&ast.DefElem{Defname: &synonym}}},
+	}
+}
+
+// convertAlterSchemaStatement converts ALTER SCHEMA s TRANSFER t, which
+// moves a table or view to schema s. Transferring a type is not followed.
+func (c *cc) convertAlterSchemaStatement(n *tsql.AlterSchemaStatement) ast.Node {
+	if n.Name == nil || n.ObjectName == nil || n.ObjectName.BaseIdentifier == nil {
+		return todo(n)
+	}
+	switch strings.ToLower(n.ObjectKind) {
+	case "", "notspecified", "object":
+	default:
+		return todo(n)
+	}
+	schema := identifier(n.Name.Value)
+	if schema == "dbo" {
+		schema = ""
+	}
+	return &ast.AlterTableSetSchemaStmt{
+		Table:     parseTableName(n.ObjectName),
+		NewSchema: &schema,
 	}
 }
 

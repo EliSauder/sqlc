@@ -47,6 +47,8 @@ func Apply(cat *core.Catalog, n ast.Node) error {
 		return applyRenameColumn(cat, v)
 	case *ast.RenameTableStmt:
 		return applyRenameTable(cat, v)
+	case *ast.AlterTableSetSchemaStmt:
+		return applySetSchema(cat, v)
 	case *ast.ViewStmt:
 		err := applyView(cat, v.View, v.Aliases, v.Query, v.Replace)
 		// A synonym may name a procedure, or something created later,
@@ -403,6 +405,25 @@ func applyRenameTable(cat *core.Catalog, stmt *ast.RenameTableStmt) error {
 		return err
 	}
 	return cat.RenameClass(classOID, *stmt.NewName)
+}
+
+// applySetSchema moves a relation to another schema.
+func applySetSchema(cat *core.Catalog, stmt *ast.AlterTableSetSchemaStmt) error {
+	if stmt.NewSchema == nil {
+		return nil
+	}
+	classOID, err := lookupClass(cat, stmt.Table)
+	if err != nil {
+		if stmt.MissingOk {
+			return nil
+		}
+		return err
+	}
+	nsOID, err := resolveOrCreateNamespace(cat, *stmt.NewSchema)
+	if err != nil {
+		return err
+	}
+	return cat.SetClassNamespace(classOID, nsOID)
 }
 
 func lookupClass(cat *core.Catalog, table *ast.TableName) (int64, error) {
