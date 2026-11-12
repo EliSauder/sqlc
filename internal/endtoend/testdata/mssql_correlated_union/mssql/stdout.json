@@ -19,8 +19,7 @@
               "int": 200
             }
           ]
-        },
-        "table": "books"
+        }
       }
     ],
     "params": []

@@ -93,6 +93,10 @@ type Settings struct {
 	// INSERTED and DELETED.
 	ReturningAliases []string `json:"returning_aliases,omitempty"`
 
+	// SetOperations types a column of a set operation from every branch,
+	// rather than from the first.
+	SetOperations *core.SetOperationRules `json:"set_operations,omitempty"`
+
 	// Comparison operators are registered as (T, T) -> Bool for every type in
 	// ComparisonCategories.
 	Comparison           []string `json:"comparison,omitempty"`
@@ -671,6 +675,15 @@ func (b *builder) consts() error {
 	}
 	if b.settings.OuterJoinNullable {
 		if err := b.cat.SetDialectFlag(b.dialectOID, core.FlagOuterJoinNullable, "true"); err != nil {
+			return err
+		}
+	}
+	if b.settings.SetOperations != nil {
+		rules, err := json.Marshal(b.settings.SetOperations)
+		if err != nil {
+			return err
+		}
+		if err := b.cat.SetDialectFlag(b.dialectOID, core.FlagSetOperations, string(rules)); err != nil {
 			return err
 		}
 	}
