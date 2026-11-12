@@ -48,7 +48,13 @@ func Apply(cat *core.Catalog, n ast.Node) error {
 	case *ast.RenameTableStmt:
 		return applyRenameTable(cat, v)
 	case *ast.ViewStmt:
-		return applyView(cat, v.View, v.Aliases, v.Query, v.Replace)
+		err := applyView(cat, v.View, v.Aliases, v.Query, v.Replace)
+		// A synonym may name a procedure, or something created later,
+		// leaving nothing for a query to select from it.
+		if err != nil && hasOption(v.Options, "synonym") {
+			return nil
+		}
+		return err
 	case *ast.CreateTableAsStmt:
 		if v.Into == nil {
 			return nil
@@ -482,6 +488,15 @@ func applyCreateDomain(cat *core.Catalog, stmt *ast.CreateDomainStmt) error {
 		NotNull:  notNull,
 	}, nil)
 	return err
+}
+
+func hasOption(options *ast.List, name string) bool {
+	for _, item := range listItems(options) {
+		if def, ok := item.(*ast.DefElem); ok && def.Defname != nil && *def.Defname == name {
+			return true
+		}
+	}
+	return false
 }
 
 // applyCompositeType records a composite type as a type whose arguments are
