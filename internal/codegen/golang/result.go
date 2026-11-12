@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/sqlc-dev/sqlc/internal/codegen/golang/opts"
 	"github.com/sqlc-dev/sqlc/internal/codegen/sdk"
@@ -164,6 +165,23 @@ func columnName(c *plugin.Column, pos int) string {
 	return fmt.Sprintf("column_%d", pos+1)
 }
 
+// goIdent makes a column name a Go identifier for the variable a single
+// column is scanned into: a database may name a column anything, as SQL
+// Server names a FOR JSON result JSON_F52E2B61-18A1-11d1-B105-00805F49916B
+// and a pivoted one 2023.
+func goIdent(name string) string {
+	name = strings.Map(func(r rune) rune {
+		if r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return r
+		}
+		return '_'
+	}, name)
+	if name != "" && unicode.IsDigit(rune(name[0])) {
+		name = "_" + name
+	}
+	return name
+}
+
 func paramName(p *plugin.Parameter) string {
 	if p.Column.Name != "" {
 		return argName(p.Column.Name)
@@ -282,8 +300,7 @@ func buildQueries(req *plugin.GenerateRequest, options *opts.Options, enums []En
 
 		if len(query.Columns) == 1 && query.Columns[0].EmbedTable == nil {
 			c := query.Columns[0]
-			name := columnName(c, 0)
-			name = strings.Replace(name, "$", "_", -1)
+			name := goIdent(columnName(c, 0))
 			retName := escape(name)
 			// For :one queries the scan destination lives in the same scope as
 			// the query parameters, so reusing a parameter's name would cause
