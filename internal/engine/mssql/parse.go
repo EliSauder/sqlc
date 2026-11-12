@@ -79,8 +79,9 @@ func (p *Parser) Parse(r io.Reader) ([]ast.Statement, error) {
 	return stmts, nil
 }
 
-// namedQuery matches the comment that names a query.
-var namedQuery = regexp.MustCompile(`(?m)^\s*--\s*name:\s*\S+`)
+// namedQuery matches the comment that names a query, in either comment
+// style.
+var namedQuery = regexp.MustCompile(`(?m)^\s*(--|/\*)\s*name:\s*\S+`)
 
 // byteOffsets returns a function mapping a UTF-16 code-unit offset — how
 // teesql records source spans, mirroring ScriptDom — to a byte offset in
