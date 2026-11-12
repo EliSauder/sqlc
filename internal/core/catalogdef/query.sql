@@ -149,6 +149,9 @@ DELETE FROM sql_class WHERE oid = ?;
 -- name: RenameClass :exec
 UPDATE sql_class SET name = sqlc.arg(new_name) WHERE oid = sqlc.arg(oid);
 
+-- name: SetClassNamespace :exec
+UPDATE sql_class SET namespace_oid = sqlc.arg(namespace_oid) WHERE oid = sqlc.arg(oid);
+
 -- ============================= sql_attribute ===========================
 
 -- name: CreateAttribute :exec
