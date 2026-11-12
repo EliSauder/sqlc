@@ -1074,6 +1074,20 @@ func (c *cc) convertColumnDefinition(n *tsql.ColumnDefinition, tablePrimaryKey m
 		TypeName: dataTypeName(n.DataType),
 		Location: c.loc(n),
 	}
+	// A computed column has no declared type: it takes its expression's
+	// type and nullability, which the core works out once the table's
+	// other columns exist. SQL Server describes it as nullable unless the
+	// expression is one it knows keeps NOT NULL, even when PERSISTED NOT
+	// NULL.
+	if n.ComputedColumnExpression != nil {
+		colDef.TypeName = nil
+		colDef.IsNotNull = keepsNotNull(n.ComputedColumnExpression)
+		colDef.Constraints = &ast.List{Items: []ast.Node{&ast.Constraint{
+			Contype: ast.ConstrTypeGenerated,
+			RawExpr: c.convertScalarExpression(n.ComputedColumnExpression),
+		}}}
+		return colDef
+	}
 
 	// T-SQL columns are nullable unless declared otherwise, except that a
 	// rowversion column is NOT NULL unless declared nullable, and sysname
@@ -1108,6 +1122,29 @@ func (c *cc) convertColumnDefinition(n *tsql.ColumnDefinition, tablePrimaryKey m
 	}
 
 	return colDef
+}
+
+// keepsNotNull reports whether SQL Server describes an expression as NOT
+// NULL when its operands are: a column, a CASE, ISNULL, CONCAT or a string
+// concatenation. Arithmetic, casts and most functions may overflow or fail
+// to NULL, so it describes those as nullable.
+func keepsNotNull(e tsql.ScalarExpression) bool {
+	switch e := e.(type) {
+	case *tsql.ParenthesisExpression:
+		return keepsNotNull(e.Expression)
+	case *tsql.ColumnReferenceExpression, *tsql.SearchedCaseExpression, *tsql.SimpleCaseExpression, *tsql.StringLiteral:
+		return true
+	case *tsql.FunctionCall:
+		switch identifierValue(e.FunctionName) {
+		case "isnull", "concat", "concat_ws":
+			return true
+		}
+	case *tsql.BinaryExpression:
+		_, l := e.FirstExpression.(*tsql.StringLiteral)
+		_, r := e.SecondExpression.(*tsql.StringLiteral)
+		return e.BinaryExpressionType == "Add" && (l || r) && keepsNotNull(e.FirstExpression) && keepsNotNull(e.SecondExpression)
+	}
+	return false
 }
 
 // dataTypeName returns the lowercased base name of a column's declared type,
