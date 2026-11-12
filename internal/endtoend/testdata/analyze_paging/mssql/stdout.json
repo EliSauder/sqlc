@@ -79,5 +79,41 @@
         }
       }
     ]
+  },
+  {
+    "name": "TopPercent",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "id",
+        "type": {
+          "name": "bigint"
+        },
+        "table": "authors"
+      },
+      {
+        "name": "name",
+        "type": {
+          "name": "nvarchar",
+          "args": [
+            {
+              "int": 100
+            }
+          ]
+        },
+        "table": "authors"
+      }
+    ],
+    "params": [
+      {
+        "number": 1,
+        "column": {
+          "name": "pct",
+          "type": {
+            "name": "float"
+          }
+        }
+      }
+    ]
   }
 ]
