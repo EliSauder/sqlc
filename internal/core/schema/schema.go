@@ -160,7 +160,12 @@ func applyCreateTable(cat *core.Catalog, stmt *ast.CreateTableStmt) error {
 	if err != nil {
 		return err
 	}
+	var generated []int
 	for i, col := range stmt.Cols {
+		if generatedExpr(col) != nil {
+			generated = append(generated, i)
+			continue
+		}
 		if col == nil || col.TypeName == nil {
 			return fmt.Errorf("column %d on %q: missing type", i+1, stmt.Name.Name)
 		}
@@ -181,7 +186,66 @@ func applyCreateTable(cat *core.Catalog, stmt *ast.CreateTableStmt) error {
 			return fmt.Errorf("attr %s.%s: %w", stmt.Name.Name, col.Colname, err)
 		}
 	}
+	for _, i := range generated {
+		if err := applyGenerated(cat, classOID, stmt.Name, stmt.Cols[i], i+1); err != nil {
+			return fmt.Errorf("attr %s.%s: %w", stmt.Name.Name, stmt.Cols[i].Colname, err)
+		}
+	}
 	return nil
+}
+
+// generatedExpr is the expression of a column that declares no type and
+// takes its value, and so its type, from an expression over the row, as a
+// SQL Server computed column does.
+func generatedExpr(col *ast.ColumnDef) ast.Node {
+	if col == nil || col.TypeName != nil {
+		return nil
+	}
+	for _, item := range listItems(col.Constraints) {
+		if c, ok := item.(*ast.Constraint); ok && c.Contype == ast.ConstrTypeGenerated {
+			return c.RawExpr
+		}
+	}
+	return nil
+}
+
+// applyGenerated records a generated column with the type and nullability
+// of its expression, typed against the table's other columns. One whose
+// expression cannot be typed is left untyped rather than failing the schema.
+// An engine that reports most generated columns nullable whatever their
+// expression marks NOT NULL the ones that keep their expression's.
+func applyGenerated(cat *core.Catalog, classOID int64, table *ast.TableName, col *ast.ColumnDef, num int) error {
+	sel := &ast.SelectStmt{
+		TargetList: &ast.List{Items: []ast.Node{&ast.ResTarget{Val: generatedExpr(col)}}},
+		FromClause: &ast.List{Items: []ast.Node{&ast.RangeVar{Schemaname: &table.Schema, Relname: &table.Name}}},
+	}
+	var res core.Column
+	var typeOID int64
+	if r, err := analyzer.Prepare(cat, sel); err == nil && len(r.Columns) == 1 {
+		res, typeOID = r.Columns[0], r.Columns[0].TypeOID
+		// An expression's type may carry arguments, as decimal(10,2) does,
+		// that no column has interned yet.
+		if typeOID == 0 && res.Type != nil {
+			t := *res.Type
+			t.Nullable = false
+			typeOID, _ = cat.ResolveTypeExpr(&t)
+		}
+	}
+	if typeOID == 0 {
+		anyOID, err := cat.ResolveTypeName("any")
+		if err != nil {
+			return err
+		}
+		res, typeOID = core.Column{}, anyOID
+	}
+	return cat.CreateAttributeSpec(core.AttributeSpec{
+		ClassOID: classOID,
+		Name:     col.Colname,
+		TypeOID:  typeOID,
+		Num:      num,
+		NotNull:  col.IsNotNull && res.NotNull,
+		DeclType: res.DataType,
+	})
 }
 
 func applyDropTable(cat *core.Catalog, stmt *ast.DropTableStmt) error {
@@ -232,11 +296,17 @@ func applyAlterTable(cat *core.Catalog, stmt *ast.AlterTableStmt) error {
 			if cmd.Def == nil {
 				continue
 			}
-			typeOID, err := columnTypeOID(cat, cmd.Def)
+			num, err := cat.NextAttributeNum(classOID)
 			if err != nil {
 				return err
 			}
-			num, err := cat.NextAttributeNum(classOID)
+			if generatedExpr(cmd.Def) != nil {
+				if err := applyGenerated(cat, classOID, table, cmd.Def, num); err != nil {
+					return err
+				}
+				continue
+			}
+			typeOID, err := columnTypeOID(cat, cmd.Def)
 			if err != nil {
 				return err
 			}

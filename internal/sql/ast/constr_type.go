@@ -9,6 +9,7 @@ func (n *ConstrType) Pos() int {
 // The constraint kinds the analysis reads, numbered as PostgreSQL's parser
 // numbers them, which is what an engine's converter records.
 const (
-	ConstrTypeNull    ConstrType = 1
-	ConstrTypeNotNull ConstrType = 2
+	ConstrTypeNull      ConstrType = 1
+	ConstrTypeNotNull   ConstrType = 2
+	ConstrTypeGenerated ConstrType = 5
 )
