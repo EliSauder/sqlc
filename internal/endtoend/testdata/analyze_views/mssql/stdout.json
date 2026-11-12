@@ -1,0 +1,127 @@
+[
+  {
+    "name": "AuthorNames",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "id",
+        "type": {
+          "name": "bigint"
+        },
+        "table": "author_names"
+      },
+      {
+        "name": "name",
+        "type": {
+          "name": "nvarchar",
+          "args": [
+            {
+              "int": 100
+            }
+          ]
+        },
+        "table": "author_names"
+      },
+      {
+        "name": "bio",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true,
+          "args": [
+            {
+              "ident": "max"
+            }
+          ]
+        },
+        "table": "author_names"
+      }
+    ],
+    "params": [
+      {
+        "number": 1,
+        "column": {
+          "name": "id",
+          "type": {
+            "name": "bigint"
+          },
+          "table": "author_names"
+        }
+      }
+    ]
+  },
+  {
+    "name": "AuthorStats",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "author_id",
+        "type": {
+          "name": "bigint"
+        },
+        "table": "author_stats"
+      },
+      {
+        "name": "book_count",
+        "type": {
+          "name": "int"
+        },
+        "table": "author_stats"
+      },
+      {
+        "name": "longest",
+        "type": {
+          "name": "int",
+          "nullable": true
+        },
+        "table": "author_stats"
+      },
+      {
+        "name": "name",
+        "type": {
+          "name": "nvarchar",
+          "args": [
+            {
+              "int": 100
+            }
+          ]
+        },
+        "table": "author_names"
+      }
+    ],
+    "params": []
+  },
+  {
+    "name": "ShortBooks",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "id",
+        "type": {
+          "name": "bigint"
+        },
+        "table": "short_books"
+      },
+      {
+        "name": "title",
+        "type": {
+          "name": "nvarchar",
+          "args": [
+            {
+              "int": 200
+            }
+          ]
+        },
+        "table": "short_books"
+      },
+      {
+        "name": "pages",
+        "type": {
+          "name": "int",
+          "nullable": true
+        },
+        "table": "short_books"
+      }
+    ],
+    "params": []
+  }
+]

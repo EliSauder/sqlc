@@ -66,9 +66,41 @@ func (c *cc) convert(node tsql.Node) ast.Node {
 		return c.convertAlterTableDropTableElementStatement(n)
 	case *tsql.CreateTypeUddtStatement:
 		return c.convertCreateTypeUddtStatement(n)
+	case *tsql.CreateViewStatement:
+		return c.convertView(n.SchemaObjectName, n.Columns, n.SelectStatement, false)
+	case *tsql.CreateOrAlterViewStatement:
+		return c.convertView(n.SchemaObjectName, n.Columns, n.SelectStatement, true)
+	case *tsql.AlterViewStatement:
+		return c.convertView(n.SchemaObjectName, n.Columns, n.SelectStatement, true)
+	case *tsql.DropViewStatement:
+		stmt := &ast.DropTableStmt{IfExists: n.IsIfExists}
+		for _, obj := range n.Objects {
+			stmt.Tables = append(stmt.Tables, parseTableName(obj))
+		}
+		return stmt
 	default:
 		return todo(n)
 	}
+}
+
+// convertView converts CREATE VIEW, and CREATE OR ALTER VIEW and ALTER VIEW,
+// which replace the view.
+func (c *cc) convertView(name *tsql.SchemaObjectName, cols []*tsql.Identifier, sel *tsql.SelectStatement, replace bool) ast.Node {
+	if name == nil || sel == nil {
+		return todo(sel)
+	}
+	stmt := &ast.ViewStmt{
+		View:    c.parseRangeVar(name),
+		Query:   c.convertSelectStatement(sel),
+		Replace: replace,
+	}
+	if len(cols) > 0 {
+		stmt.Aliases = &ast.List{}
+		for _, col := range cols {
+			stmt.Aliases.Items = append(stmt.Aliases.Items, NewIdentifier(col.Value))
+		}
+	}
+	return stmt
 }
 
 // convertCreateTypeUddtStatement reports CREATE TYPE name FROM base [NOT
