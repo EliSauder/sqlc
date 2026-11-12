@@ -1,0 +1,2 @@
+# package querytest
+error generating code: :copyfrom is only supported by pgx and github.com/go-sql-driver/mysql
