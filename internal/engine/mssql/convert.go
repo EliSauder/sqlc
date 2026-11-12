@@ -70,6 +70,8 @@ func (c *cc) convert(node tsql.Node) ast.Node {
 		return c.convertAlterTableDropTableElementStatement(n)
 	case *tsql.AlterTableAlterColumnStatement:
 		return c.convertAlterTableAlterColumnStatement(n)
+	case *tsql.ExecuteStatement:
+		return c.convertExecuteStatement(n)
 	case *tsql.CreateTypeUddtStatement:
 		return c.convertCreateTypeUddtStatement(n)
 	case *tsql.CreateViewStatement:
@@ -1670,6 +1672,95 @@ func (c *cc) convertAlterTableAddTableElementStatement(n *tsql.AlterTableAddTabl
 		})
 	}
 	return stmt
+}
+
+// convertExecuteStatement converts the one procedure call a schema changes
+// the catalog with: sp_rename, of a table, or of a column when its object
+// type is COLUMN. Any other call is no statement sqlc has a use for.
+func (c *cc) convertExecuteStatement(n *tsql.ExecuteStatement) ast.Node {
+	spec := n.ExecuteSpecification
+	if spec == nil {
+		return todo(n)
+	}
+	proc, ok := spec.ExecutableEntity.(*tsql.ExecutableProcedureReference)
+	if !ok || proc.ProcedureReference == nil || proc.ProcedureReference.ProcedureReference == nil {
+		return todo(n)
+	}
+	if name := proc.ProcedureReference.ProcedureReference.Name; name == nil || identifierValue(name.BaseIdentifier) != "sp_rename" {
+		return todo(n)
+	}
+	// Arguments are passed by position or by name.
+	args := map[string]string{}
+	for i, p := range proc.Parameters {
+		lit, ok := p.ParameterValue.(*tsql.StringLiteral)
+		if !ok {
+			return todo(n)
+		}
+		key := []string{"objname", "newname", "objtype"}[min(i, 2)]
+		if p.Variable != nil {
+			key = strings.ToLower(strings.TrimPrefix(p.Variable.Name, "@"))
+		}
+		args[key] = lit.Value
+	}
+	parts := splitObjectName(args["objname"])
+	newName := identifier(args["newname"])
+	if len(parts) == 0 || newName == "" {
+		return todo(n)
+	}
+	table := func(parts []string) *ast.TableName {
+		tn := &ast.TableName{Name: parts[len(parts)-1]}
+		if len(parts) > 1 && parts[len(parts)-2] != "dbo" {
+			tn.Schema = parts[len(parts)-2]
+		}
+		return tn
+	}
+	switch strings.ToLower(args["objtype"]) {
+	case "column":
+		if len(parts) < 2 {
+			return todo(n)
+		}
+		col := parts[len(parts)-1]
+		return &ast.RenameColumnStmt{
+			Table:   table(parts[:len(parts)-1]),
+			Col:     &ast.ColumnRef{Name: col},
+			NewName: &newName,
+		}
+	case "", "object":
+		return &ast.RenameTableStmt{Table: table(parts), NewName: &newName}
+	}
+	return todo(n)
+}
+
+// splitObjectName splits a name sp_rename takes, such as dbo.[my table].c,
+// into its lowercased parts, unquoting bracketed and double-quoted ones.
+func splitObjectName(s string) []string {
+	var parts []string
+	var cur strings.Builder
+	for i := 0; i < len(s); i++ {
+		switch ch := s[i]; {
+		case ch == '[' || ch == '"':
+			end := byte(']')
+			if ch == '"' {
+				end = '"'
+			}
+			for i++; i < len(s); i++ {
+				if s[i] == end {
+					if i+1 < len(s) && s[i+1] == end {
+						i++
+					} else {
+						break
+					}
+				}
+				cur.WriteByte(s[i])
+			}
+		case ch == '.':
+			parts = append(parts, identifier(cur.String()))
+			cur.Reset()
+		default:
+			cur.WriteByte(ch)
+		}
+	}
+	return append(parts, identifier(cur.String()))
 }
 
 // convertAlterTableAlterColumnStatement converts ALTER COLUMN, which gives a
