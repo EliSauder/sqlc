@@ -1,0 +1,43 @@
+[
+  {
+    "name": "ListItems",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "id",
+        "type": {
+          "name": "int"
+        },
+        "table": "items"
+      },
+      {
+        "name": "code",
+        "type": {
+          "name": "bigint",
+          "nullable": true
+        },
+        "table": "items"
+      },
+      {
+        "name": "label",
+        "type": {
+          "name": "nvarchar",
+          "args": [
+            {
+              "int": 50
+            }
+          ]
+        },
+        "table": "items"
+      },
+      {
+        "name": "note",
+        "type": {
+          "name": "int"
+        },
+        "table": "items"
+      }
+    ],
+    "params": []
+  }
+]

@@ -68,6 +68,8 @@ func (c *cc) convert(node tsql.Node) ast.Node {
 		return c.convertAlterTableAddTableElementStatement(n)
 	case *tsql.AlterTableDropTableElementStatement:
 		return c.convertAlterTableDropTableElementStatement(n)
+	case *tsql.AlterTableAlterColumnStatement:
+		return c.convertAlterTableAlterColumnStatement(n)
 	case *tsql.CreateTypeUddtStatement:
 		return c.convertCreateTypeUddtStatement(n)
 	case *tsql.CreateViewStatement:
@@ -1666,6 +1668,38 @@ func (c *cc) convertAlterTableAddTableElementStatement(n *tsql.AlterTableAddTabl
 			Subtype: ast.AT_AddColumn,
 			Def:     def,
 		})
+	}
+	return stmt
+}
+
+// convertAlterTableAlterColumnStatement converts ALTER COLUMN, which gives a
+// column a new type and makes it nullable unless it says NOT NULL, or only
+// sets whether it is nullable.
+func (c *cc) convertAlterTableAlterColumnStatement(n *tsql.AlterTableAlterColumnStatement) ast.Node {
+	if n.SchemaObjectName == nil || n.ColumnIdentifier == nil {
+		return todo(n)
+	}
+	name := identifierValue(n.ColumnIdentifier)
+	stmt := &ast.AlterTableStmt{
+		Table: parseTableName(n.SchemaObjectName),
+		Cmds:  &ast.List{},
+	}
+	notNull := n.AlterTableAlterColumnOption == "NotNull"
+	if n.DataType != nil {
+		stmt.Cmds.Items = append(stmt.Cmds.Items, &ast.AlterTableCmd{
+			Name:    &name,
+			Subtype: ast.AT_AlterColumnType,
+			Def:     &ast.ColumnDef{Colname: name, TypeName: dataTypeName(n.DataType), IsNotNull: notNull},
+		})
+	}
+	switch {
+	case notNull:
+		stmt.Cmds.Items = append(stmt.Cmds.Items, &ast.AlterTableCmd{Name: &name, Subtype: ast.AT_SetNotNull})
+	case n.DataType != nil || n.AlterTableAlterColumnOption == "Null":
+		stmt.Cmds.Items = append(stmt.Cmds.Items, &ast.AlterTableCmd{Name: &name, Subtype: ast.AT_DropNotNull})
+	}
+	if len(stmt.Cmds.Items) == 0 {
+		return todo(n)
 	}
 	return stmt
 }
