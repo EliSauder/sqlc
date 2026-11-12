@@ -1,0 +1,67 @@
+[
+  {
+    "name": "WriterPeople",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "id",
+        "type": {
+          "name": "int"
+        },
+        "table": "writers"
+      },
+      {
+        "name": "name",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true,
+          "args": [
+            {
+              "int": 50
+            }
+          ]
+        },
+        "table": "writers"
+      }
+    ],
+    "params": [
+      {
+        "number": 1,
+        "column": {
+          "name": "id",
+          "type": {
+            "name": "int"
+          },
+          "table": "writers"
+        }
+      }
+    ]
+  },
+  {
+    "name": "AllWriters",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "id",
+        "type": {
+          "name": "int"
+        },
+        "table": "writers"
+      },
+      {
+        "name": "name",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true,
+          "args": [
+            {
+              "int": 50
+            }
+          ]
+        },
+        "table": "writers"
+      }
+    ],
+    "params": []
+  }
+]

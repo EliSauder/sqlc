@@ -76,6 +76,8 @@ func (c *cc) convert(node tsql.Node) ast.Node {
 		return c.convertCreateSequenceStatement(n)
 	case *tsql.CreateFunctionStatement:
 		return c.convertCreateFunctionStatement(n)
+	case *tsql.CreateSynonymStatement:
+		return c.convertCreateSynonymStatement(n)
 	case *tsql.CreateTypeUddtStatement:
 		return c.convertCreateTypeUddtStatement(n)
 	case *tsql.CreateViewStatement:
@@ -1775,6 +1777,24 @@ func (c *cc) convertCreateFunctionStatement(n *tsql.CreateFunctionStatement) ast
 		Params:     params,
 		ReturnType: returns,
 		Options:    options,
+	}
+}
+
+// convertCreateSynonymStatement records a synonym as a view of everything
+// in what it names, marked a synonym since it may as well name something
+// no query selects from, as a procedure.
+func (c *cc) convertCreateSynonymStatement(n *tsql.CreateSynonymStatement) ast.Node {
+	if n.Name == nil || n.ForName == nil || n.ForName.BaseIdentifier == nil {
+		return todo(n)
+	}
+	synonym := "synonym"
+	return &ast.ViewStmt{
+		View: c.parseRangeVar(n.Name),
+		Query: &ast.SelectStmt{
+			TargetList: &ast.List{Items: []ast.Node{&ast.ResTarget{Val: &ast.ColumnRef{Fields: &ast.List{Items: []ast.Node{&ast.A_Star{}}}}}}},
+			FromClause: &ast.List{Items: []ast.Node{c.parseRangeVar(n.ForName)}},
+		},
+		Options: &ast.List{Items: []ast.Node{&ast.DefElem{Defname: &synonym}}},
 	}
 }
 
