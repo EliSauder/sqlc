@@ -67,6 +67,8 @@ func (c *cc) convert(node tsql.Node) ast.Node {
 		return c.convertAlterTableAlterColumnStatement(n)
 	case *tsql.ExecuteStatement:
 		return c.convertExecuteStatement(n)
+	case *tsql.CreateSequenceStatement:
+		return c.convertCreateSequenceStatement(n)
 	case *tsql.CreateTypeUddtStatement:
 		return c.convertCreateTypeUddtStatement(n)
 	case *tsql.CreateViewStatement:
@@ -680,6 +682,14 @@ func (c *cc) convertScalarExpression(expr tsql.ScalarExpression) ast.Node {
 			Subselect:   c.convertQueryExpression(e.QueryExpression),
 			Location:    c.loc(e),
 		}
+	case *tsql.NextValueForExpression:
+		if e.SequenceName == nil {
+			return todo(e)
+		}
+		return &ast.FuncCall{
+			Funcname: &ast.List{Items: []ast.Node{&ast.String{Str: sequenceFunc(e.SequenceName)}}},
+			Location: c.loc(e),
+		}
 	case *tsql.ParameterlessCall:
 		return &ast.FuncCall{
 			Funcname: &ast.List{
@@ -1255,6 +1265,33 @@ func (c *cc) convertAlterTableAddTableElementStatement(n *tsql.AlterTableAddTabl
 		})
 	}
 	return stmt
+}
+
+// convertCreateSequenceStatement records a sequence as the function NEXT
+// VALUE FOR it calls, under a name no function can have, returning the
+// sequence's type: bigint unless it says AS another.
+func (c *cc) convertCreateSequenceStatement(n *tsql.CreateSequenceStatement) ast.Node {
+	if n.Name == nil || n.Name.BaseIdentifier == nil {
+		return todo(n)
+	}
+	returns := &ast.TypeName{Name: "bigint"}
+	for _, opt := range n.SequenceOptions {
+		if dt, ok := opt.(*tsql.DataTypeSequenceOption); ok && dt.DataType != nil {
+			returns = dataTypeName(dt.DataType)
+		}
+	}
+	return &ast.CreateFunctionStmt{
+		Func:       &ast.FuncName{Name: sequenceFunc(n.Name)},
+		ReturnType: returns,
+	}
+}
+
+func sequenceFunc(name *tsql.SchemaObjectName) string {
+	tn := parseTableName(name)
+	if tn.Schema != "" {
+		return "next value for " + tn.Schema + "." + tn.Name
+	}
+	return "next value for " + tn.Name
 }
 
 // blockSchemaStatements are the schema changes an IF or BEGIN ... END block
