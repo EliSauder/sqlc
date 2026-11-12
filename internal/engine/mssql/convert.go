@@ -224,9 +224,13 @@ func (c *cc) convertQuerySpecification(n *tsql.QuerySpecification) *ast.SelectSt
 		}
 	}
 
-	// TOP n; TOP n PERCENT does not translate to a row count.
-	if n.TopRowFilter != nil && !n.TopRowFilter.Percent {
+	// TOP n. TOP n PERCENT is no row count, but a float a placeholder for
+	// it is typed as.
+	if n.TopRowFilter != nil {
 		stmt.LimitCount = c.convertScalarExpression(n.TopRowFilter.Expression)
+		if n.TopRowFilter.Percent {
+			stmt.LimitCount = &ast.TypeCast{Arg: stmt.LimitCount, TypeName: &ast.TypeName{Name: "float"}}
+		}
 	}
 
 	if n.UniqueRowFilter == "Distinct" {
