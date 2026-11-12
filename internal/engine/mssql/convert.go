@@ -74,6 +74,8 @@ func (c *cc) convert(node tsql.Node) ast.Node {
 		return c.convertExecuteStatement(n)
 	case *tsql.CreateSequenceStatement:
 		return c.convertCreateSequenceStatement(n)
+	case *tsql.CreateFunctionStatement:
+		return c.convertCreateFunctionStatement(n)
 	case *tsql.CreateTypeUddtStatement:
 		return c.convertCreateTypeUddtStatement(n)
 	case *tsql.CreateViewStatement:
@@ -1700,6 +1702,33 @@ func (c *cc) convertCreateSequenceStatement(n *tsql.CreateSequenceStatement) ast
 	return &ast.CreateFunctionStmt{
 		Func:       &ast.FuncName{Name: sequenceFunc(n.Name)},
 		ReturnType: returns,
+	}
+}
+
+// convertCreateFunctionStatement records a scalar function, whose result
+// SQL Server reports nullable whatever its arguments are.
+func (c *cc) convertCreateFunctionStatement(n *tsql.CreateFunctionStatement) ast.Node {
+	ret, ok := n.ReturnType.(*tsql.ScalarFunctionReturnType)
+	if !ok || ret.DataType == nil || n.Name == nil || n.Name.BaseIdentifier == nil {
+		return todo(n)
+	}
+	tn := parseTableName(n.Name)
+	params := &ast.List{}
+	for _, p := range n.Parameters {
+		if p.VariableName == nil || p.DataType == nil {
+			continue
+		}
+		name := strings.TrimPrefix(p.VariableName.Value, "@")
+		param := &ast.FuncParam{Name: &name, Type: dataTypeName(p.DataType)}
+		if p.Value != nil {
+			param.DefExpr = c.convertScalarExpression(p.Value)
+		}
+		params.Items = append(params.Items, param)
+	}
+	return &ast.CreateFunctionStmt{
+		Func:       &ast.FuncName{Schema: tn.Schema, Name: tn.Name},
+		Params:     params,
+		ReturnType: nullableTypeName(dataTypeName(ret.DataType)),
 	}
 }
 
