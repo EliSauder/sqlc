@@ -565,8 +565,18 @@ func (c *cc) convertScalarExpression(expr tsql.ScalarExpression) ast.Node {
 			Location: c.loc(e),
 		}
 	case *tsql.ConvertCall:
+		arg := c.convertScalarExpression(e.Parameter)
+		// A style given as other than a literal, as @style, is an int
+		// passed through "convert style", which may return NULL.
+		if _, literal := e.Style.(*tsql.IntegerLiteral); e.Style != nil && !literal {
+			arg = &ast.FuncCall{
+				Funcname: &ast.List{Items: []ast.Node{&ast.String{Str: "convert style"}}},
+				Args:     &ast.List{Items: []ast.Node{arg, &ast.TypeCast{Arg: c.convertScalarExpression(e.Style), TypeName: &ast.TypeName{Name: "int"}}}},
+				Location: c.loc(e),
+			}
+		}
 		return &ast.TypeCast{
-			Arg:      c.convertScalarExpression(e.Parameter),
+			Arg:      arg,
 			TypeName: dataTypeName(e.DataType),
 			Location: c.loc(e),
 		}
