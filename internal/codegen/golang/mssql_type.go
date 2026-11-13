@@ -58,7 +58,10 @@ func mssqlType(req *plugin.GenerateRequest, options *opts.Options, col *plugin.C
 		return null("time.Time", "sql.NullTime")
 
 	case "uniqueidentifier":
-		return null("mssql.UniqueIdentifier", "mssql.NullUniqueIdentifier")
+		// go-mssqldb sends a NULL mssql.NullUniqueIdentifier passed by value
+		// as a malformed GUID, which SQL Server rejects with error 8009; a
+		// nil *mssql.UniqueIdentifier it sends as NULL.
+		return null("mssql.UniqueIdentifier", "*mssql.UniqueIdentifier")
 
 	case "geography", "geometry", "hierarchyid", "vector":
 		return "[]byte"
