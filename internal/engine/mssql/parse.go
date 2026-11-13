@@ -65,6 +65,12 @@ func (p *Parser) Parse(r io.Reader) ([]ast.Statement, error) {
 				continue
 			}
 
+			if namedQuery.Match(blob[loc:end]) {
+				if err := checkPlaceholders(blob, start, end, converter.namedParams); err != nil {
+					return nil, err
+				}
+			}
+
 			stmts = append(stmts, ast.Statement{
 				Raw: &ast.RawStmt{
 					Stmt:         out,
@@ -82,6 +88,76 @@ func (p *Parser) Parse(r io.Reader) ([]ast.Statement, error) {
 // namedQuery matches the comment that names a query, in either comment
 // style.
 var namedQuery = regexp.MustCompile(`(?m)^\s*(--|/\*)\s*name:\s*\S+`)
+
+// checkPlaceholders reports a placeholder in a query's text that did not
+// become one of its parameters, which a construct the converter does not
+// follow drops, leaving generated code that passes the query too few
+// arguments.
+func checkPlaceholders(blob []byte, start, end int, params map[string]namedParam) error {
+	for _, p := range placeholders(blob[start:end]) {
+		if _, ok := params[strings.ToLower(p.name)]; !ok {
+			return &sqlerr.Error{
+				Message:  fmt.Sprintf("placeholder @%s is not supported where it is used", p.name),
+				Location: start + p.offset,
+			}
+		}
+	}
+	return nil
+}
+
+type placeholder struct {
+	name   string
+	offset int
+}
+
+// placeholders are the @name placeholders in sql, leaving out @@ system
+// variables and anything inside a string, a quoted or bracketed
+// identifier or a comment.
+func placeholders(sql []byte) []placeholder {
+	var out []placeholder
+	skipTo := func(i int, close string) int {
+		if j := bytes.Index(sql[i:], []byte(close)); j >= 0 {
+			return i + j + len(close)
+		}
+		return len(sql)
+	}
+	for i := 0; i < len(sql); {
+		switch c := sql[i]; {
+		case c == '\'' || c == '"':
+			// A doubled quote inside is an escaped one, which the scan
+			// steps over as the end of one string and the start of the
+			// next.
+			i = skipTo(i+1, string(c))
+		case c == '[':
+			i = skipTo(i+1, "]")
+		case c == '-' && i+1 < len(sql) && sql[i+1] == '-':
+			i = skipTo(i, "\n")
+		case c == '/' && i+1 < len(sql) && sql[i+1] == '*':
+			i = skipTo(i+2, "*/")
+		case c == '@':
+			j := i + 1
+			for j < len(sql) && isNameByte(sql[j]) {
+				j++
+			}
+			if i+1 < len(sql) && sql[i+1] == '@' {
+				i = j
+				continue
+			}
+			if j > i+1 {
+				out = append(out, placeholder{name: string(sql[i+1 : j]), offset: i})
+			}
+			i = j
+		default:
+			i++
+		}
+	}
+	return out
+}
+
+func isNameByte(b byte) bool {
+	return b == '_' || b == '#' || b == '$' || b == '@' ||
+		'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z' || '0' <= b && b <= '9' || b >= utf8.RuneSelf
+}
 
 // byteOffsets returns a function mapping a UTF-16 code-unit offset — how
 // teesql records source spans, mirroring ScriptDom — to a byte offset in
