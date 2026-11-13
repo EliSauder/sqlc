@@ -8,13 +8,14 @@ import (
 	"database/sql"
 
 	"github.com/microsoft/go-mssqldb"
+	"github.com/shopspring/decimal"
 )
 
 type Thing struct {
 	ID       int64
-	Price    string
-	Amount   sql.NullString
-	Plain    sql.NullString
+	Price    decimal.Decimal
+	Amount   decimal.NullDecimal
+	Plain    decimal.NullDecimal
 	Body     sql.NullString
 	Title    sql.NullString
 	Code     sql.NullString
@@ -28,7 +29,7 @@ type Thing struct {
 	F        sql.NullFloat64
 	F53      sql.NullFloat64
 	R        sql.NullFloat64
-	M        sql.NullString
+	M        mssql.Money[decimal.NullDecimal]
 	B        sql.NullBool
 	U        mssql.NullUniqueIdentifier
 	X        sql.NullString

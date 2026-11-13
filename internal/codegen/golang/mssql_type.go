@@ -7,8 +7,9 @@ import (
 
 // mssqlType maps a SQL Server type to the Go type
 // github.com/microsoft/go-mssqldb hands database/sql for it. Exact numerics
-// come back as their decimal text, so they map to string the way
-// PostgreSQL's numeric does under database/sql. A uniqueidentifier maps to
+// map to shopspring's decimal, which the driver sends as a decimal, and
+// money to the driver's Money over it, which it sends as money. A
+// uniqueidentifier maps to
 // the driver's own type, which keeps SQL Server's byte order straight. An
 // alias type created with CREATE TYPE ... FROM is reported by its own name,
 // which the catalog does not yet resolve to its base, so it maps to any
@@ -35,8 +36,11 @@ func mssqlType(req *plugin.GenerateRequest, options *opts.Options, col *plugin.C
 	case "bit":
 		return null("bool", "sql.NullBool")
 
-	case "decimal", "numeric", "money", "smallmoney":
-		return null("string", "sql.NullString")
+	case "decimal", "numeric":
+		return null("decimal.Decimal", "decimal.NullDecimal")
+
+	case "money", "smallmoney":
+		return null("mssql.Money[decimal.Decimal]", "mssql.Money[decimal.NullDecimal]")
 
 	case "float":
 		return null("float64", "sql.NullFloat64")

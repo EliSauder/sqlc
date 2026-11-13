@@ -244,7 +244,9 @@ func buildImports(options *opts.Options, engine string, queries []Query, uses fu
 	// decimal.Decimal must not pull in shopspring's as well.
 	if usesDriverTypes(engine) {
 		for qualifier, path := range driverTypes {
-			if uses(qualifier) && !overrideHasQualifier(overrideTypes, qualifier) {
+			// A generic type's argument needs its package too, as
+			// mssql.Money[decimal.Decimal] does.
+			if (uses(qualifier) || uses("mssql.Money["+qualifier)) && !overrideHasQualifier(overrideTypes, qualifier) {
 				pkg[ImportSpec{Path: path}] = struct{}{}
 			}
 		}

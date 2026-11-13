@@ -9,6 +9,9 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/microsoft/go-mssqldb"
+	"github.com/shopspring/decimal"
 )
 
 const allTypes = `-- name: AllTypes :many
@@ -91,21 +94,21 @@ WHERE CAST(@a AS DECIMAL(5,2)) > 0
 `
 
 type CastsParams struct {
-	A string
+	A decimal.Decimal
 	B string
 	C string
 	D time.Time
-	E string
+	E mssql.Money[decimal.Decimal]
 	F float32
 	G string
 }
 
 type CastsRow struct {
-	A sql.NullString
+	A decimal.NullDecimal
 	B sql.NullString
 	C sql.NullString
 	D sql.NullTime
-	E sql.NullString
+	E mssql.Money[decimal.NullDecimal]
 	F sql.NullFloat64
 	G sql.NullString
 }
@@ -139,7 +142,7 @@ WHERE price = @price AND body = @body AND phone = @phone AND offset_at = @offset
 `
 
 type ParamsParams struct {
-	Price    string
+	Price    decimal.Decimal
 	Body     sql.NullString
 	Phone    any
 	OffsetAt sql.NullTime
