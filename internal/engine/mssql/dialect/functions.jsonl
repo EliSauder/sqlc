@@ -419,3 +419,4 @@
 {"name": "regexp_count", "args": [{"type": "any"}, {"type": "any"}, {"type": "any", "mode": "v"}], "returns": "int", "nullable": true}
 {"name": "vector_distance", "args": [{"type": "varchar"}, {"type": "vector"}, {"type": "vector"}], "returns": "float", "nullable": true}
 {"name": "trim", "args": [{"type": "any"}, {"type": "any"}], "returns": "$2"}
+{"name": "convert style", "args": [{"type": "any"}, {"type": "int"}], "returns": "$1", "nullable": true}
