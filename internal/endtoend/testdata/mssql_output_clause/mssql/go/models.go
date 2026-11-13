@@ -6,6 +6,8 @@ package querytest
 
 import (
 	"database/sql"
+
+	"github.com/shopspring/decimal"
 )
 
 type Author struct {
@@ -18,5 +20,5 @@ type Book struct {
 	ID       int64
 	AuthorID int64
 	Title    string
-	Price    sql.NullString
+	Price    decimal.NullDecimal
 }
