@@ -1,0 +1,1 @@
+CREATE TABLE books (id INT NOT NULL);
