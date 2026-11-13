@@ -343,7 +343,8 @@ func codegen(ctx context.Context, combo config.CombinedSettings, sql OutputPair,
 
 	case sql.Gen.Go != nil:
 		out = combo.Go.Out
-		handler = ext.HandleFunc(golang.Generate)
+		generator := golang.Generator{TypeMapper: result.GoTypeMapper}
+		handler = ext.HandleFunc(generator.Generate)
 		opts, err := json.Marshal(sql.Gen.Go)
 		if err != nil {
 			return "", nil, fmt.Errorf("opts marshal failed: %w", err)

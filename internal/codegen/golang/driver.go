@@ -39,9 +39,8 @@ func usesPqArrays(engine string, driver opts.SQLDriver) bool {
 	return !driver.IsPGX()
 }
 
-// usesDriverTypes reports whether the engine is one whose mapper reads the
-// type expression and draws types from its driver's packages, the ones in
-// driverTypes. These engines generate code for database/sql only.
+// usesDriverTypes identifies database/sql bindings that scan arrays directly
+// instead of using lib/pq's wrappers.
 func usesDriverTypes(engine string) bool {
 	switch engine {
 	case engineClickHouse, engineDuckDB, engineGoogleSQL, engineMSSQL:

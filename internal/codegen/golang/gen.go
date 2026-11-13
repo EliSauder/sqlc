@@ -14,6 +14,7 @@ import (
 	"github.com/sqlc-dev/sqlc/internal/codegen/golang/opts"
 	"github.com/sqlc-dev/sqlc/internal/codegen/sdk"
 	"github.com/sqlc-dev/sqlc/internal/metadata"
+	sqlopts "github.com/sqlc-dev/sqlc/internal/opts"
 	"github.com/sqlc-dev/sqlc/internal/plugin"
 )
 
@@ -110,11 +111,20 @@ func (t *tmplCtx) codegenQueryRetval(q Query) (string, error) {
 	}
 }
 
+type Generator struct {
+	TypeMapper sqlopts.GoTypeMapper
+}
+
 func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
+	return (Generator{}).Generate(ctx, req)
+}
+
+func (g Generator) Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
 	options, err := opts.Parse(req)
 	if err != nil {
 		return nil, err
 	}
+	options.TypeMapper = g.TypeMapper
 
 	if err := opts.ValidateOpts(options); err != nil {
 		return nil, err

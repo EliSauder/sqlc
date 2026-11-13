@@ -1,0 +1,34 @@
+version: "2"
+sql:
+  - engine: "mssql"
+    schema: "schema.sql"
+    queries: "query.sql"
+    gen:
+      go:
+        package: "querytest"
+        out: "go"
+        emit_interface: true
+  - engine: "mssql"
+    schema: "schema.sql"
+    queries: "query.sql"
+    gen:
+      go:
+        package: "querytest"
+        out: "go_pointers"
+        emit_interface: true
+        emit_pointers_for_null_types: true
+  - engine: "mssql"
+    schema: "schema.sql"
+    queries: "query.sql"
+    gen:
+      go:
+        package: "querytest"
+        out: "go_overrides"
+        emit_interface: true
+        overrides:
+          - db_type: "money"
+            go_type: "github.com/sqlc-dev/sqlc/endtoend/overrides_decimal_package/decimal.Decimal"
+          - column: "balances.optional_amount"
+            go_type: "github.com/sqlc-dev/sqlc/endtoend/overrides_decimal_package/decimal.Decimal"
+          - column: "balances.token"
+            go_type: "string"

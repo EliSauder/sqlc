@@ -6,6 +6,7 @@ import (
 	"maps"
 	"path/filepath"
 
+	sqlopts "github.com/sqlc-dev/sqlc/internal/opts"
 	"github.com/sqlc-dev/sqlc/internal/plugin"
 )
 
@@ -52,7 +53,8 @@ type Options struct {
 	BuildTags                    string            `json:"build_tags,omitempty" yaml:"build_tags"`
 	Initialisms                  *[]string         `json:"initialisms,omitempty" yaml:"initialisms"`
 
-	InitialismsMap map[string]struct{} `json:"-" yaml:"-"`
+	InitialismsMap map[string]struct{}  `json:"-" yaml:"-"`
+	TypeMapper     sqlopts.GoTypeMapper `json:"-" yaml:"-"`
 }
 
 type GlobalOptions struct {
