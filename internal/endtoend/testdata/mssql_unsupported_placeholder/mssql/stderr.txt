@@ -1,0 +1,2 @@
+# package querytest
+query.sql:5:30: placeholder @ix is not supported where it is used

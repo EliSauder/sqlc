@@ -14,6 +14,7 @@ import (
 	"github.com/sqlc-dev/sqlc/internal/codegen/golang/opts"
 	"github.com/sqlc-dev/sqlc/internal/codegen/sdk"
 	"github.com/sqlc-dev/sqlc/internal/metadata"
+	sqlopts "github.com/sqlc-dev/sqlc/internal/opts"
 	"github.com/sqlc-dev/sqlc/internal/plugin"
 )
 
@@ -110,7 +111,17 @@ func (t *tmplCtx) codegenQueryRetval(q Query) (string, error) {
 	}
 }
 
+// Generator receives execution restrictions from the engine/driver integration,
+// rather than deciding them from the request's engine name.
+type Generator struct {
+	ExecutionCapabilities sqlopts.ExecutionCapabilities
+}
+
 func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
+	return (Generator{}).Generate(ctx, req)
+}
+
+func (g Generator) Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
 	options, err := opts.Parse(req)
 	if err != nil {
 		return nil, err
@@ -138,7 +149,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		return nil, err
 	}
 
-	return generate(req, options, enums, structs, queries)
+	return generate(req, options, enums, structs, queries, g.ExecutionCapabilities)
 }
 
 func validate(options *opts.Options, enums []Enum, structs []Struct, queries []Query) error {
@@ -168,7 +179,7 @@ func validate(options *opts.Options, enums []Enum, structs []Struct, queries []Q
 	return nil
 }
 
-func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, structs []Struct, queries []Query) (*plugin.GenerateResponse, error) {
+func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, structs []Struct, queries []Query, capabilities sqlopts.ExecutionCapabilities) (*plugin.GenerateResponse, error) {
 	i := &importer{
 		Options: options,
 		Engine:  req.Settings.Engine,
@@ -210,6 +221,14 @@ func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, 
 			return nil, err
 		}
 		tctx.SQLDriver = opts.SQLDriverGoSQLDriverMySQL
+	}
+
+	if capabilities.LastInsertIDUnsupportedReason != "" {
+		for _, q := range queries {
+			if q.Cmd == metadata.CmdExecLastId {
+				return nil, fmt.Errorf("query %q: :execlastid %s", q.MethodName, capabilities.LastInsertIDUnsupportedReason)
+			}
+		}
 	}
 
 	if tctx.UsesBatch && !tctx.SQLDriver.IsPGX() {

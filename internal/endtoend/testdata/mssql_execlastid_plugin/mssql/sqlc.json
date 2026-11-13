@@ -1,0 +1,28 @@
+{
+  "version": "2",
+  "sql": [
+    {
+      "engine": "mssql",
+      "schema": "schema.sql",
+      "queries": "query.sql",
+      "codegen": [
+        {
+          "out": "gen",
+          "plugin": "jsonb",
+          "options": {
+            "indent": "  ",
+            "filename": "codegen.json"
+          }
+        }
+      ]
+    }
+  ],
+  "plugins": [
+    {
+      "name": "jsonb",
+      "process": {
+        "cmd": "sqlc-gen-json"
+      }
+    }
+  ]
+}

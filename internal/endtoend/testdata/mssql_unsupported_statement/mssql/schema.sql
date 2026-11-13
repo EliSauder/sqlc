@@ -1,0 +1,12 @@
+CREATE TABLE authors (
+  id BIGINT IDENTITY(1,1) PRIMARY KEY,
+  name NVARCHAR(100) NOT NULL
+);
+
+CREATE TABLE books (
+  id BIGINT IDENTITY(1,1) PRIMARY KEY,
+  author_id BIGINT NOT NULL,
+  title NVARCHAR(200) NOT NULL
+);
+
+CREATE PROCEDURE list_authors AS SELECT id, name FROM authors;

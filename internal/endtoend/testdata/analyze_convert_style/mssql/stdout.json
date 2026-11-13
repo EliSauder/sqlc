@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Styled",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "styled",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true,
+          "args": [
+            {
+              "int": 30
+            }
+          ]
+        }
+      },
+      {
+        "name": "fixed",
+        "type": {
+          "name": "varchar",
+          "args": [
+            {
+              "int": 10
+            }
+          ]
+        }
+      }
+    ],
+    "params": [
+      {
+        "number": 1,
+        "column": {
+          "name": "style",
+          "type": {
+            "name": "int"
+          }
+        }
+      }
+    ]
+  }
+]
