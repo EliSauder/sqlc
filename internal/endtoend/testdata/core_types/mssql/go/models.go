@@ -31,7 +31,7 @@ type Thing struct {
 	R        sql.NullFloat64
 	M        mssql.Money[decimal.NullDecimal]
 	B        sql.NullBool
-	U        mssql.NullUniqueIdentifier
+	U        *mssql.UniqueIdentifier
 	X        sql.NullString
 	J        sql.NullString
 	Sv       any
