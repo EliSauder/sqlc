@@ -95,7 +95,16 @@ func goInnerType(req *plugin.GenerateRequest, options *opts.Options, col *plugin
 		}
 	}
 
-	// TODO: Extend the engine interface to handle types
+	if options.TypeMapper != nil {
+		t, nullable := columnType(col)
+		mapped := options.TypeMapper.GoType(t, param)
+		typ := mapped.Type
+		if mapped.NullableType != "" {
+			typ = nullableGoType(options, nullable, typ, mapped.NullableType)
+		}
+		return typ, mapped.Complete
+	}
+
 	switch req.Settings.Engine {
 	case engineMySQL:
 		return mysqlType(req, options, col), false
@@ -109,8 +118,6 @@ func goInnerType(req *plugin.GenerateRequest, options *opts.Options, col *plugin
 		return duckdbType(req, options, col, param), true
 	case engineGoogleSQL:
 		return googlesqlType(req, options, col), true
-	case engineMSSQL:
-		return mssqlType(req, options, col), true
 	default:
 		return "any", false
 	}

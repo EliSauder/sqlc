@@ -240,9 +240,11 @@ func (c *Compiler) parseQueries(o opts.Parser) (*Result, error) {
 		return nil, fmt.Errorf("no queries contained in paths %s", strings.Join(c.conf.Queries, ","))
 	}
 
+	typeMapper, _ := c.parser.(opts.GoTypeMapper)
 	return &Result{
-		Catalog: c.catalog,
-		Queries: q,
+		GoTypeMapper: typeMapper,
+		Catalog:      c.catalog,
+		Queries:      q,
 	}, nil
 }
 

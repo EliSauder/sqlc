@@ -157,13 +157,12 @@ var stdlibTypes = map[string]string{
 	"big.Rat":          "math/big",
 }
 
-// driverTypes are the packages the ClickHouse, DuckDB, Spanner and SQL
-// Server mappers draw types from, by the qualifier those types carry.
+// driverTypes are the packages the legacy mappers draw types from, by the
+// qualifier those types carry.
 var driverTypes = map[string]string{
 	"civil.":   "cloud.google.com/go/civil",
 	"decimal.": "github.com/shopspring/decimal",
 	"duckdb.":  "github.com/duckdb/duckdb-go/v2",
-	"mssql.":   "github.com/microsoft/go-mssqldb",
 	"orb.":     "github.com/paulmach/orb",
 	"spanner.": "cloud.google.com/go/spanner",
 }
@@ -242,11 +241,13 @@ func buildImports(options *opts.Options, engine string, queries []Query, uses fu
 	// them, and an override whose type carries the same qualifier brings
 	// its own import: a PostgreSQL numeric overridden to another package's
 	// decimal.Decimal must not pull in shopspring's as well.
-	if usesDriverTypes(engine) {
-		for qualifier, path := range driverTypes {
-			// A generic type's argument needs its package too, as
-			// mssql.Money[decimal.Decimal] does.
-			if (uses(qualifier) || uses("mssql.Money["+qualifier)) && !overrideHasQualifier(overrideTypes, qualifier) {
+	typeImports := driverTypes
+	if options.TypeMapper != nil {
+		typeImports = options.TypeMapper.GoTypeImports()
+	}
+	if options.TypeMapper != nil || usesDriverTypes(engine) {
+		for qualifier, path := range typeImports {
+			if uses(qualifier) && !overrideHasQualifier(overrideTypes, qualifier) {
 				pkg[ImportSpec{Path: path}] = struct{}{}
 			}
 		}
