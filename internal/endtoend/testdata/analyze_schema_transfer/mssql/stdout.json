@@ -1,0 +1,56 @@
+[
+  {
+    "name": "SalesOrders",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "id",
+        "type": {
+          "name": "int"
+        },
+        "table": "orders"
+      },
+      {
+        "name": "total",
+        "type": {
+          "name": "decimal",
+          "args": [
+            {
+              "int": 10
+            },
+            {
+              "int": 2
+            }
+          ]
+        },
+        "table": "orders"
+      }
+    ],
+    "params": [
+      {
+        "number": 1,
+        "column": {
+          "name": "id",
+          "type": {
+            "name": "int"
+          },
+          "table": "orders"
+        }
+      }
+    ]
+  },
+  {
+    "name": "StagingItems",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "id",
+        "type": {
+          "name": "int"
+        },
+        "table": "staging_items"
+      }
+    ],
+    "params": []
+  }
+]

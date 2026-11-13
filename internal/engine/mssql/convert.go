@@ -63,11 +63,53 @@ func (c *cc) convert(node tsql.Node) ast.Node {
 		return c.convertAlterTableAddTableElementStatement(n)
 	case *tsql.AlterTableDropTableElementStatement:
 		return c.convertAlterTableDropTableElementStatement(n)
+	case *tsql.AlterTableAlterColumnStatement:
+		return c.convertAlterTableAlterColumnStatement(n)
+	case *tsql.ExecuteStatement:
+		return c.convertExecuteStatement(n)
+	case *tsql.CreateSequenceStatement:
+		return c.convertCreateSequenceStatement(n)
+	case *tsql.CreateSynonymStatement:
+		return c.convertCreateSynonymStatement(n)
+	case *tsql.AlterSchemaStatement:
+		return c.convertAlterSchemaStatement(n)
 	case *tsql.CreateTypeUddtStatement:
 		return c.convertCreateTypeUddtStatement(n)
+	case *tsql.CreateViewStatement:
+		return c.convertView(n.SchemaObjectName, n.Columns, n.SelectStatement, false)
+	case *tsql.CreateOrAlterViewStatement:
+		return c.convertView(n.SchemaObjectName, n.Columns, n.SelectStatement, true)
+	case *tsql.AlterViewStatement:
+		return c.convertView(n.SchemaObjectName, n.Columns, n.SelectStatement, true)
+	case *tsql.DropViewStatement:
+		stmt := &ast.DropTableStmt{IfExists: n.IsIfExists}
+		for _, obj := range n.Objects {
+			stmt.Tables = append(stmt.Tables, parseTableName(obj))
+		}
+		return stmt
 	default:
 		return todo(n)
 	}
+}
+
+// convertView converts CREATE VIEW, and CREATE OR ALTER VIEW and ALTER VIEW,
+// which replace the view.
+func (c *cc) convertView(name *tsql.SchemaObjectName, cols []*tsql.Identifier, sel *tsql.SelectStatement, replace bool) ast.Node {
+	if name == nil || sel == nil {
+		return todo(sel)
+	}
+	stmt := &ast.ViewStmt{
+		View:    c.parseRangeVar(name),
+		Query:   c.convertSelectStatement(sel),
+		Replace: replace,
+	}
+	if len(cols) > 0 {
+		stmt.Aliases = &ast.List{}
+		for _, col := range cols {
+			stmt.Aliases.Items = append(stmt.Aliases.Items, NewIdentifier(col.Value))
+		}
+	}
+	return stmt
 }
 
 // convertCreateTypeUddtStatement reports CREATE TYPE name FROM base [NOT
@@ -644,6 +686,14 @@ func (c *cc) convertScalarExpression(expr tsql.ScalarExpression) ast.Node {
 			Subselect:   c.convertQueryExpression(e.QueryExpression),
 			Location:    c.loc(e),
 		}
+	case *tsql.NextValueForExpression:
+		if e.SequenceName == nil {
+			return todo(e)
+		}
+		return &ast.FuncCall{
+			Funcname: &ast.List{Items: []ast.Node{&ast.String{Str: sequenceFunc(e.SequenceName)}}},
+			Location: c.loc(e),
+		}
 	case *tsql.ParameterlessCall:
 		return &ast.FuncCall{
 			Funcname: &ast.List{
@@ -1074,6 +1124,20 @@ func (c *cc) convertColumnDefinition(n *tsql.ColumnDefinition, tablePrimaryKey m
 		TypeName: dataTypeName(n.DataType),
 		Location: c.loc(n),
 	}
+	// A computed column has no declared type: it takes its expression's
+	// type and nullability, which the core works out once the table's
+	// other columns exist. SQL Server describes it as nullable unless the
+	// expression is one it knows keeps NOT NULL, even when PERSISTED NOT
+	// NULL.
+	if n.ComputedColumnExpression != nil {
+		colDef.TypeName = nil
+		colDef.IsNotNull = keepsNotNull(n.ComputedColumnExpression)
+		colDef.Constraints = &ast.List{Items: []ast.Node{&ast.Constraint{
+			Contype: ast.ConstrTypeGenerated,
+			RawExpr: c.convertScalarExpression(n.ComputedColumnExpression),
+		}}}
+		return colDef
+	}
 
 	// T-SQL columns are nullable unless declared otherwise, except that a
 	// rowversion column is NOT NULL unless declared nullable, and sysname
@@ -1108,6 +1172,29 @@ func (c *cc) convertColumnDefinition(n *tsql.ColumnDefinition, tablePrimaryKey m
 	}
 
 	return colDef
+}
+
+// keepsNotNull reports whether SQL Server describes an expression as NOT
+// NULL when its operands are: a column, a CASE, ISNULL, CONCAT or a string
+// concatenation. Arithmetic, casts and most functions may overflow or fail
+// to NULL, so it describes those as nullable.
+func keepsNotNull(e tsql.ScalarExpression) bool {
+	switch e := e.(type) {
+	case *tsql.ParenthesisExpression:
+		return keepsNotNull(e.Expression)
+	case *tsql.ColumnReferenceExpression, *tsql.SearchedCaseExpression, *tsql.SimpleCaseExpression, *tsql.StringLiteral:
+		return true
+	case *tsql.FunctionCall:
+		switch identifierValue(e.FunctionName) {
+		case "isnull", "concat", "concat_ws":
+			return true
+		}
+	case *tsql.BinaryExpression:
+		_, l := e.FirstExpression.(*tsql.StringLiteral)
+		_, r := e.SecondExpression.(*tsql.StringLiteral)
+		return e.BinaryExpressionType == "Add" && (l || r) && keepsNotNull(e.FirstExpression) && keepsNotNull(e.SecondExpression)
+	}
+	return false
 }
 
 // dataTypeName returns the lowercased base name of a column's declared type,
@@ -1180,6 +1267,240 @@ func (c *cc) convertAlterTableAddTableElementStatement(n *tsql.AlterTableAddTabl
 			Subtype: ast.AT_AddColumn,
 			Def:     def,
 		})
+	}
+	return stmt
+}
+
+// convertCreateSequenceStatement records a sequence as the function NEXT
+// VALUE FOR it calls, under a name no function can have, returning the
+// sequence's type: bigint unless it says AS another.
+func (c *cc) convertCreateSequenceStatement(n *tsql.CreateSequenceStatement) ast.Node {
+	if n.Name == nil || n.Name.BaseIdentifier == nil {
+		return todo(n)
+	}
+	returns := &ast.TypeName{Name: "bigint"}
+	for _, opt := range n.SequenceOptions {
+		if dt, ok := opt.(*tsql.DataTypeSequenceOption); ok && dt.DataType != nil {
+			returns = dataTypeName(dt.DataType)
+		}
+	}
+	return &ast.CreateFunctionStmt{
+		Func:       &ast.FuncName{Name: sequenceFunc(n.Name)},
+		ReturnType: returns,
+	}
+}
+
+// convertCreateSynonymStatement records a synonym as a view of everything
+// in what it names, marked a synonym since it may as well name something
+// no query selects from, as a procedure.
+func (c *cc) convertCreateSynonymStatement(n *tsql.CreateSynonymStatement) ast.Node {
+	if n.Name == nil || n.ForName == nil || n.ForName.BaseIdentifier == nil {
+		return todo(n)
+	}
+	synonym := "synonym"
+	return &ast.ViewStmt{
+		View: c.parseRangeVar(n.Name),
+		Query: &ast.SelectStmt{
+			TargetList: &ast.List{Items: []ast.Node{&ast.ResTarget{Val: &ast.ColumnRef{Fields: &ast.List{Items: []ast.Node{&ast.A_Star{}}}}}}},
+			FromClause: &ast.List{Items: []ast.Node{c.parseRangeVar(n.ForName)}},
+		},
+		Options: &ast.List{Items: []ast.Node{&ast.DefElem{Defname: &synonym}}},
+	}
+}
+
+// convertAlterSchemaStatement converts ALTER SCHEMA s TRANSFER t, which
+// moves a table or view to schema s. Transferring a type is not followed.
+func (c *cc) convertAlterSchemaStatement(n *tsql.AlterSchemaStatement) ast.Node {
+	if n.Name == nil || n.ObjectName == nil || n.ObjectName.BaseIdentifier == nil {
+		return todo(n)
+	}
+	switch strings.ToLower(n.ObjectKind) {
+	case "", "notspecified", "object":
+	default:
+		return todo(n)
+	}
+	schema := identifier(n.Name.Value)
+	if schema == "dbo" {
+		schema = ""
+	}
+	return &ast.AlterTableSetSchemaStmt{
+		Table:     parseTableName(n.ObjectName),
+		NewSchema: &schema,
+	}
+}
+
+func sequenceFunc(name *tsql.SchemaObjectName) string {
+	tn := parseTableName(name)
+	if tn.Schema != "" {
+		return "next value for " + tn.Schema + "." + tn.Name
+	}
+	return "next value for " + tn.Name
+}
+
+// blockSchemaStatements are the schema changes an IF or BEGIN ... END block
+// makes, as a migration script guards CREATE TABLE with IF OBJECT_ID(...)
+// IS NULL. The THEN branch is taken, and since a guard is what decides
+// whether a change applies, each change tolerates the object being there
+// or not: a create of one that exists and a drop or alter of one that does
+// not are skipped. Anything that is not a schema change is left out, as it
+// is outside a block.
+func (c *cc) blockSchemaStatements(n tsql.Statement) []ast.Node {
+	var out []ast.Node
+	switch s := n.(type) {
+	case *tsql.IfStatement:
+		out = c.blockSchemaStatements(s.ThenStatement)
+	case *tsql.BeginEndBlockStatement:
+		if s.StatementList != nil {
+			for _, inner := range s.StatementList.Statements {
+				out = append(out, c.blockSchemaStatements(inner)...)
+			}
+		}
+	case nil:
+	default:
+		switch stmt := c.convert(s).(type) {
+		case *ast.TODO, *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt:
+		case *ast.CreateTableStmt:
+			stmt.IfNotExists = true
+			out = append(out, stmt)
+		case *ast.DropTableStmt:
+			stmt.IfExists = true
+			out = append(out, stmt)
+		case *ast.AlterTableStmt:
+			stmt.MissingOk = true
+			out = append(out, stmt)
+		case *ast.RenameColumnStmt:
+			stmt.MissingOk = true
+			out = append(out, stmt)
+		case *ast.RenameTableStmt:
+			stmt.MissingOk = true
+			out = append(out, stmt)
+		case *ast.ViewStmt:
+			stmt.Replace = true
+			out = append(out, stmt)
+		default:
+			out = append(out, stmt)
+		}
+	}
+	return out
+}
+
+// convertExecuteStatement converts the one procedure call a schema changes
+// the catalog with: sp_rename, of a table, or of a column when its object
+// type is COLUMN. Any other call is no statement sqlc has a use for.
+func (c *cc) convertExecuteStatement(n *tsql.ExecuteStatement) ast.Node {
+	spec := n.ExecuteSpecification
+	if spec == nil {
+		return todo(n)
+	}
+	proc, ok := spec.ExecutableEntity.(*tsql.ExecutableProcedureReference)
+	if !ok || proc.ProcedureReference == nil || proc.ProcedureReference.ProcedureReference == nil {
+		return todo(n)
+	}
+	if name := proc.ProcedureReference.ProcedureReference.Name; name == nil || identifierValue(name.BaseIdentifier) != "sp_rename" {
+		return todo(n)
+	}
+	// Arguments are passed by position or by name.
+	args := map[string]string{}
+	for i, p := range proc.Parameters {
+		lit, ok := p.ParameterValue.(*tsql.StringLiteral)
+		if !ok {
+			return todo(n)
+		}
+		key := []string{"objname", "newname", "objtype"}[min(i, 2)]
+		if p.Variable != nil {
+			key = strings.ToLower(strings.TrimPrefix(p.Variable.Name, "@"))
+		}
+		args[key] = lit.Value
+	}
+	parts := splitObjectName(args["objname"])
+	newName := identifier(args["newname"])
+	if len(parts) == 0 || newName == "" {
+		return todo(n)
+	}
+	table := func(parts []string) *ast.TableName {
+		tn := &ast.TableName{Name: parts[len(parts)-1]}
+		if len(parts) > 1 && parts[len(parts)-2] != "dbo" {
+			tn.Schema = parts[len(parts)-2]
+		}
+		return tn
+	}
+	switch strings.ToLower(args["objtype"]) {
+	case "column":
+		if len(parts) < 2 {
+			return todo(n)
+		}
+		col := parts[len(parts)-1]
+		return &ast.RenameColumnStmt{
+			Table:   table(parts[:len(parts)-1]),
+			Col:     &ast.ColumnRef{Name: col},
+			NewName: &newName,
+		}
+	case "", "object":
+		return &ast.RenameTableStmt{Table: table(parts), NewName: &newName}
+	}
+	return todo(n)
+}
+
+// splitObjectName splits a name sp_rename takes, such as dbo.[my table].c,
+// into its lowercased parts, unquoting bracketed and double-quoted ones.
+func splitObjectName(s string) []string {
+	var parts []string
+	var cur strings.Builder
+	for i := 0; i < len(s); i++ {
+		switch ch := s[i]; {
+		case ch == '[' || ch == '"':
+			end := byte(']')
+			if ch == '"' {
+				end = '"'
+			}
+			for i++; i < len(s); i++ {
+				if s[i] == end {
+					if i+1 < len(s) && s[i+1] == end {
+						i++
+					} else {
+						break
+					}
+				}
+				cur.WriteByte(s[i])
+			}
+		case ch == '.':
+			parts = append(parts, identifier(cur.String()))
+			cur.Reset()
+		default:
+			cur.WriteByte(ch)
+		}
+	}
+	return append(parts, identifier(cur.String()))
+}
+
+// convertAlterTableAlterColumnStatement converts ALTER COLUMN, which gives a
+// column a new type and makes it nullable unless it says NOT NULL, or only
+// sets whether it is nullable.
+func (c *cc) convertAlterTableAlterColumnStatement(n *tsql.AlterTableAlterColumnStatement) ast.Node {
+	if n.SchemaObjectName == nil || n.ColumnIdentifier == nil {
+		return todo(n)
+	}
+	name := identifierValue(n.ColumnIdentifier)
+	stmt := &ast.AlterTableStmt{
+		Table: parseTableName(n.SchemaObjectName),
+		Cmds:  &ast.List{},
+	}
+	notNull := n.AlterTableAlterColumnOption == "NotNull"
+	if n.DataType != nil {
+		stmt.Cmds.Items = append(stmt.Cmds.Items, &ast.AlterTableCmd{
+			Name:    &name,
+			Subtype: ast.AT_AlterColumnType,
+			Def:     &ast.ColumnDef{Colname: name, TypeName: dataTypeName(n.DataType), IsNotNull: notNull},
+		})
+	}
+	switch {
+	case notNull:
+		stmt.Cmds.Items = append(stmt.Cmds.Items, &ast.AlterTableCmd{Name: &name, Subtype: ast.AT_SetNotNull})
+	case n.DataType != nil || n.AlterTableAlterColumnOption == "Null":
+		stmt.Cmds.Items = append(stmt.Cmds.Items, &ast.AlterTableCmd{Name: &name, Subtype: ast.AT_DropNotNull})
+	}
+	if len(stmt.Cmds.Items) == 0 {
+		return todo(n)
 	}
 	return stmt
 }

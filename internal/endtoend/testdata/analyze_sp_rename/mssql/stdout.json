@@ -1,0 +1,58 @@
+[
+  {
+    "name": "RenamedColumn",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "id",
+        "type": {
+          "name": "int"
+        },
+        "table": "t"
+      },
+      {
+        "name": "w",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true,
+          "args": [
+            {
+              "int": 10
+            }
+          ]
+        },
+        "table": "t"
+      }
+    ],
+    "params": []
+  },
+  {
+    "name": "RenamedTable",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "id",
+        "type": {
+          "name": "int"
+        },
+        "table": "renamed"
+      }
+    ],
+    "params": []
+  },
+  {
+    "name": "RenamedInSchema",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "b",
+        "type": {
+          "name": "int",
+          "nullable": true
+        },
+        "table": "y"
+      }
+    ],
+    "params": []
+  }
+]

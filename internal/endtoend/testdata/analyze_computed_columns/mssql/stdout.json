@@ -1,0 +1,298 @@
+[
+  {
+    "name": "GetComputed",
+    "cmd": ":one",
+    "columns": [
+      {
+        "name": "total",
+        "type": {
+          "name": "bigint",
+          "nullable": true
+        },
+        "table": "authors"
+      },
+      {
+        "name": "doubled",
+        "type": {
+          "name": "int",
+          "nullable": true
+        },
+        "table": "authors"
+      },
+      {
+        "name": "doubled_nn",
+        "type": {
+          "name": "int",
+          "nullable": true
+        },
+        "table": "authors"
+      },
+      {
+        "name": "label",
+        "type": {
+          "name": "nvarchar"
+        },
+        "table": "authors"
+      },
+      {
+        "name": "bio_label",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true
+        },
+        "table": "authors"
+      },
+      {
+        "name": "cost",
+        "type": {
+          "name": "decimal",
+          "nullable": true,
+          "args": [
+            {
+              "int": 10
+            },
+            {
+              "int": 2
+            }
+          ]
+        },
+        "table": "authors"
+      },
+      {
+        "name": "precise",
+        "type": {
+          "name": "decimal",
+          "nullable": true,
+          "args": [
+            {
+              "int": 17
+            },
+            {
+              "int": 9
+            }
+          ]
+        },
+        "table": "authors"
+      },
+      {
+        "name": "price_text",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true,
+          "args": [
+            {
+              "int": 37
+            }
+          ]
+        },
+        "table": "authors"
+      },
+      {
+        "name": "extra",
+        "type": {
+          "name": "int",
+          "nullable": true
+        },
+        "table": "authors"
+      }
+    ],
+    "params": [
+      {
+        "number": 1,
+        "column": {
+          "name": "id",
+          "type": {
+            "name": "bigint"
+          },
+          "table": "authors"
+        }
+      }
+    ]
+  },
+  {
+    "name": "ListAuthors",
+    "cmd": ":many",
+    "columns": [
+      {
+        "name": "id",
+        "type": {
+          "name": "bigint"
+        },
+        "table": "authors"
+      },
+      {
+        "name": "name",
+        "type": {
+          "name": "nvarchar",
+          "args": [
+            {
+              "int": 100
+            }
+          ]
+        },
+        "table": "authors"
+      },
+      {
+        "name": "bio",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true,
+          "args": [
+            {
+              "int": 200
+            }
+          ]
+        },
+        "table": "authors"
+      },
+      {
+        "name": "price",
+        "type": {
+          "name": "int"
+        },
+        "table": "authors"
+      },
+      {
+        "name": "total",
+        "type": {
+          "name": "bigint",
+          "nullable": true
+        },
+        "table": "authors"
+      },
+      {
+        "name": "doubled",
+        "type": {
+          "name": "int",
+          "nullable": true
+        },
+        "table": "authors"
+      },
+      {
+        "name": "doubled_nn",
+        "type": {
+          "name": "int",
+          "nullable": true
+        },
+        "table": "authors"
+      },
+      {
+        "name": "label",
+        "type": {
+          "name": "nvarchar"
+        },
+        "table": "authors"
+      },
+      {
+        "name": "bio_label",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true
+        },
+        "table": "authors"
+      },
+      {
+        "name": "cost",
+        "type": {
+          "name": "decimal",
+          "nullable": true,
+          "args": [
+            {
+              "int": 10
+            },
+            {
+              "int": 2
+            }
+          ]
+        },
+        "table": "authors"
+      },
+      {
+        "name": "precise",
+        "type": {
+          "name": "decimal",
+          "nullable": true,
+          "args": [
+            {
+              "int": 17
+            },
+            {
+              "int": 9
+            }
+          ]
+        },
+        "table": "authors"
+      },
+      {
+        "name": "price_text",
+        "type": {
+          "name": "nvarchar",
+          "nullable": true,
+          "args": [
+            {
+              "int": 37
+            }
+          ]
+        },
+        "table": "authors"
+      },
+      {
+        "name": "extra",
+        "type": {
+          "name": "int",
+          "nullable": true
+        },
+        "table": "authors"
+      }
+    ],
+    "params": []
+  },
+  {
+    "name": "CreateAuthor",
+    "cmd": ":exec",
+    "columns": [],
+    "params": [
+      {
+        "number": 1,
+        "column": {
+          "name": "name",
+          "type": {
+            "name": "nvarchar",
+            "args": [
+              {
+                "int": 100
+              }
+            ]
+          },
+          "table": "authors"
+        }
+      },
+      {
+        "number": 2,
+        "column": {
+          "name": "bio",
+          "type": {
+            "name": "nvarchar",
+            "nullable": true,
+            "args": [
+              {
+                "int": 200
+              }
+            ]
+          },
+          "table": "authors"
+        }
+      },
+      {
+        "number": 3,
+        "column": {
+          "name": "price",
+          "type": {
+            "name": "int"
+          },
+          "table": "authors"
+        }
+      }
+    ]
+  }
+]

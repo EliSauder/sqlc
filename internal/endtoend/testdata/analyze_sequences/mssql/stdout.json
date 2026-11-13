@@ -1,0 +1,52 @@
+[
+  {
+    "name": "NextIDs",
+    "cmd": ":one",
+    "columns": [
+      {
+        "name": "a",
+        "type": {
+          "name": "bigint"
+        }
+      },
+      {
+        "name": "b",
+        "type": {
+          "name": "int"
+        }
+      },
+      {
+        "name": "c",
+        "type": {
+          "name": "decimal",
+          "args": [
+            {
+              "int": 12
+            },
+            {
+              "int": 0
+            }
+          ]
+        }
+      }
+    ],
+    "params": []
+  },
+  {
+    "name": "InsertOrder",
+    "cmd": ":exec",
+    "columns": [],
+    "params": [
+      {
+        "number": 1,
+        "column": {
+          "name": "n",
+          "type": {
+            "name": "int"
+          },
+          "table": "orders"
+        }
+      }
+    ]
+  }
+]
